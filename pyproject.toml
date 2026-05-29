@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyrateyourmusic"
+dynamic = ["version"]
+description = "Python scraper / API client for rateyourmusic.com (releases, artists, charts) via FlareSolverr"
+license = { text = "Apache-2.0" }
+authors = [{ name = "JarbasAi", email = "jarbasai@mailfence.com" }]
+requires-python = ">=3.8"
+dependencies = [
+    "requests",
+    "beautifulsoup4",
+    "unblock_requests",
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+dataset = ["datasets"]
+
+[project.urls]
+Homepage = "https://github.com/TigreGotico/pyrateyourmusic"
+
+[tool.setuptools.dynamic]
+version = { attr = "pyrateyourmusic.version.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["pyrateyourmusic*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "live: tests that hit the live rateyourmusic.com network via FlareSolverr (deselect with -m 'not live')",
+]
