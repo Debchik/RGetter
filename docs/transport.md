@@ -14,7 +14,7 @@ The endpoint is resolved from the environment by `unblock_requests` using the
 
 | Variable | Meaning |
 | --- | --- |
-| `PYRATEYOURMUSIC_FLARESOLVERR_URL` | FlareSolverr base URL (e.g. `http://192.168.1.116:8191`) |
+| `PYRATEYOURMUSIC_FLARESOLVERR_URL` | FlareSolverr base URL (e.g. `http://localhost:8191`) |
 | `PYRATEYOURMUSIC_FLARESOLVERR_TIMEOUT` | per-solve budget in ms (default 120000 here) |
 
 `flaresolverr_url()` returns the configured endpoint (or `None`), which the live

@@ -1,4 +1,4 @@
-# IDs & ExternalIds.extra
+# IDs & External ID dicts
 
 ## The `rym_id` anchor
 
@@ -7,11 +7,12 @@ Every object carries a canonical, stable `rym_id` taken from its URL slug:
 - **Release** — `<artist>/<title>`, e.g. `radiohead/ok-computer`.
 - **Artist** — `<slug>`, e.g. `radiohead`.
 
-These are the cross-link anchors used throughout the metadatarr pipeline.
+These are the cross-link anchors used for joining releases and artists across
+datasets and integrations.
 
 ## Converters
 
-`pyrateyourmusic.ids` flattens models into `ExternalIds.extra` dicts. Keys are
+`pyrateyourmusic.ids` flattens models into plain dicts. Keys are
 namespaced with `rym_`; list values are JSON-encoded; scalars are stringified;
 empty values are omitted.
 

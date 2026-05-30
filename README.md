@@ -6,16 +6,20 @@ Python scraper / API client for [rateyourmusic.com](https://rateyourmusic.com)
 RYM is a community music database with crowd ratings, a deep genre taxonomy,
 mood/style descriptors and full discographies. This client returns
 `Release`, `ReleaseStub` and `Artist` objects and converts them to
-`ExternalIds.extra` dicts for cross-linking.
+flat `rym_*`-keyed dicts for cross-linking.
 
-## FlareSolverr required
+## Important caveats
 
-rateyourmusic.com sits behind a heavy interactive Cloudflare deployment; only a
-[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) proxy gets through.
-Point the client at one:
+**RYM aggressively blocks bots.** Live scraping requires a running
+[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) instance — plain
+HTTP, `curl_cffi`, and TLS impersonation are all rejected. Even with FlareSolverr,
+release detail pages commonly 503 from datacenter IPs. HTML selectors are
+best-effort and may need updating when RYM changes its markup.
+
+Set the solver endpoint before use:
 
 ```bash
-export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://192.168.1.116:8191
+export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhost:8191
 ```
 
 ## Install
@@ -47,8 +51,7 @@ print(release.tracklist, release.descriptors)
 
 The `rym_id` anchor is the URL slug: `<artist>/<title>` for releases
 (`radiohead/ok-computer`), `<slug>` for artists (`radiohead`).
-`release_to_extra` / `artist_to_extra` emit `rym_*`-namespaced
-`ExternalIds.extra` dicts.
+`release_to_extra` / `artist_to_extra` emit flat `rym_*`-namespaced dicts.
 
 ## Reachability
 

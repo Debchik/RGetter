@@ -1,4 +1,4 @@
-"""Convert a release / artist into ``ExternalIds.extra`` dicts for metadatarr.
+"""Convert a release / artist into flat ``rym_*``-keyed ID dicts.
 
     python examples/06_external_ids.py
 """

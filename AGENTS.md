@@ -3,7 +3,7 @@
 ## What this is
 
 A scraper / API client for rateyourmusic.com returning typed dataclasses for
-releases, artists and charts, plus `ExternalIds.extra` converters and a
+releases, artists and charts, plus external-ID dict converters and a
 resumable JSONL dataset exporter.
 
 ## Layout

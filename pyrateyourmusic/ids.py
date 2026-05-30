@@ -1,7 +1,7 @@
-"""Converters from pyrateyourmusic models to ``ExternalIds.extra`` dicts.
+"""Converters from pyrateyourmusic models to flat ``rym_*``-namespaced dicts.
 
-Used by the metadatarr provider and any integration that serialises RYM data
-into the mediavocab ``ExternalIds.extra`` key-space. The ``rym_*`` keys become
+Flattens RYM model objects into plain dicts suitable for use as external-ID
+payloads, database records, or cross-linking metadata. The ``rym_*`` keys become
 canonical-ID anchors for cross-linking releases and artists.
 
 Key namespace
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
 
 
 def release_to_extra(release: "Union[Release, ReleaseStub]") -> dict:
-    """Convert a Release or ReleaseStub to an ``ExternalIds.extra`` dict."""
+    """Convert a Release or ReleaseStub to a flat ``rym_*``-keyed dict."""
     extra: dict = {
         "rym_id": release.rym_id,
         "rym_url": release.url,
