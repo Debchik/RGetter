@@ -15,7 +15,7 @@ obtain clearance — plain HTTP and TLS impersonation are rejected. Point the
 client at one:
 
 ```bash
-export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhost:8191
+export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhttp://localhost:8191
 ```
 
 The transport reads this variable when it builds the session. No other

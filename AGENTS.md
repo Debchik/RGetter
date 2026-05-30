@@ -48,5 +48,5 @@ artist data. The live smoke tests therefore exercise charts + artists only.
 ```bash
 pip install -e '.[test]'
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -m "not live"   # offline
-PYRATEYOURMUSIC_FLARESOLVERR_URL=http://host:8191 pytest -m live
+PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhost:8191 pytest -m live
 ```

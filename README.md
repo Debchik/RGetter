@@ -19,7 +19,7 @@ best-effort and may need updating when RYM changes its markup.
 Set the solver endpoint before use:
 
 ```bash
-export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhost:8191
+export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhttp://localhost:8191
 ```
 
 ## Install
