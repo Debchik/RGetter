@@ -12,7 +12,7 @@ rate-limited at the origin and frequently answer ``503`` from datacenter IPs;
 artist pages and chart listings are reliably reachable and carry the same
 title / artist / year / rating / genre data inline.
 
-Requests are throttled (default 2.0 s) to stay polite.
+Requests are throttled (default 5.0 s) to stay polite.
 """
 from __future__ import annotations
 
@@ -36,12 +36,12 @@ _HEADERS = {
 
 _session: Optional[Any] = None
 _last_request: float = 0.0
-_min_delay: float = 2.0
+_min_delay: float = 5.0
 _solve_timeout_ms: int = 120000
 
 
 def set_delay(seconds: float) -> None:
-    """Set the minimum delay between HTTP requests (default: 2.0 s)."""
+    """Set the minimum delay between HTTP requests (default: 5.0 s)."""
     global _min_delay
     _min_delay = max(0.0, seconds)
 
