@@ -1,6 +1,6 @@
 # pyrateyourmusic
 
-Python scraper / API client for [rateyourmusic.com](https://rateyourmusic.com)
+Python HTML scraper for [rateyourmusic.com](https://rateyourmusic.com)
 (RYM / Sonemic) — releases, artists and charts as typed dataclasses.
 
 RYM is a community music database with crowd ratings, a deep genre taxonomy,

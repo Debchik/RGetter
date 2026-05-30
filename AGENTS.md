@@ -2,9 +2,10 @@
 
 ## What this is
 
-A scraper / API client for rateyourmusic.com returning typed dataclasses for
-releases, artists and charts, plus external-ID dict converters and a
-resumable JSONL dataset exporter.
+An HTML scraper for rateyourmusic.com that parses page markup into typed
+dataclasses for releases, artists and charts, plus external-ID dict converters
+and a resumable JSONL dataset exporter. CSS selectors are best-effort and may
+break if RYM changes its markup.
 
 ## Layout
 
