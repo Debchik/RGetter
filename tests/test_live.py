@@ -1,9 +1,12 @@
 """Live smoke tests — require network + a FlareSolverr endpoint.
 
 Run with ``pytest -m live``. Skipped automatically when
-``PYRATEYOURMUSIC_FLARESOLVERR_URL`` is unset. Kept to 1-2 page fetches to stay
-polite against RYM's aggressive rate limiting; release *detail* pages are not
-exercised because they 503 from datacenter IPs.
+``PYRATEYOURMUSIC_FLARESOLVERR_URL`` is unset. Kept to a handful of page fetches
+to stay polite against RYM's aggressive rate limiting.
+
+Release detail pages 503 from datacenter IPs. The ``test_release_wayback_smoke``
+test exercises the fallback chain: live fetch → Wayback Machine. It does NOT
+assert live detail-page reachability; a Wayback result is accepted as success.
 """
 import pytest
 
@@ -40,3 +43,19 @@ def test_artist_smoke():
     assert a.genres
     assert a.release_count > 5
     assert any(d.rym_id == "radiohead/ok-computer" for d in a.discography)
+
+
+def test_release_wayback_smoke():
+    """Exercises the live → Wayback fallback chain for release detail pages.
+
+    From datacenter IPs the live fetch will 503; the test accepts a successful
+    Wayback snapshot as passing. Only raises on total failure (both paths down).
+    """
+    from pyrateyourmusic import get_release, set_delay
+    set_delay(3.0)
+    r = get_release("radiohead/ok-computer")
+    assert r.title == "OK Computer"
+    assert r.artist == "Radiohead"
+    assert r.rating is not None
+    # tracklist comes through from Wayback snapshots
+    assert r.track_count >= 10
