@@ -9,13 +9,13 @@ pip install -e '.[dataset]' # adds `datasets` for Hugging Face export
 
 ## Configure FlareSolverr (required)
 
-rateyourmusic.com is behind a heavy interactive Cloudflare deployment. A
-[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) proxy is required to
-obtain clearance — plain HTTP and TLS impersonation are rejected. Point the
-client at one:
+rateyourmusic.com sits behind a heavy interactive Cloudflare deployment. A
+[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr) proxy is
+required to get clearance. Plain HTTP and TLS impersonation are rejected.
+Point the client at a running instance:
 
 ```bash
-export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhttp://localhost:8191
+export PYRATEYOURMUSIC_FLARESOLVERR_URL=http://localhost:8191
 ```
 
 The transport reads this variable when it builds the session. No other
@@ -28,7 +28,7 @@ import pyrateyourmusic as p
 
 p.set_delay(3.0)  # polite: seconds between requests
 
-# Charts — the reliable bulk source (title, artist, year, rating, genres inline)
+# Charts, the reliable bulk source (title, artist, year, rating, genres inline)
 for stub in p.top_albums("all-time")[:5]:
     print(stub, stub.rating, stub.genres)
 
@@ -36,7 +36,7 @@ for stub in p.top_albums("all-time")[:5]:
 artist = p.get_artist("radiohead")
 print(artist.name, artist.genres, artist.release_count)
 
-# Release detail (tracklist + descriptors) — see the caveat below
+# Release detail (tracklist and descriptors), see the caveat below
 release = p.get_release("radiohead/ok-computer")
 print(release.tracklist)
 ```
@@ -44,9 +44,12 @@ print(release.tracklist)
 ## A note on release detail pages
 
 Release detail pages (`/release/<type>/<artist>/<title>/`) are RYM's most
-heavily rate-limited surface and frequently answer a `503` origin block from
-datacenter IPs — `get_release` raises `RuntimeError` in that case. Charts and
-artist pages carry the same title / artist / year / rating / genre data and stay
-reachable, so prefer them for bulk work and reserve detail fetches (which add
-the tracklist and descriptors) for a residential exit. See
+heavily rate-limited surface. They often answer a `503` origin block from
+datacenter IPs, and `get_release` raises `RuntimeError` in that case. Charts
+and artist pages carry the same title, artist, year, rating, and genre data
+and stay reachable. Prefer them for bulk work. Reserve detail fetches, which
+add the tracklist and descriptors, for a residential exit. See
 [transport.md](transport.md).
+
+---
+[Home](README.md) · [Transport →](transport.md)

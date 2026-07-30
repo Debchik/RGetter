@@ -4,8 +4,8 @@
 
 Every object carries a canonical, stable `rym_id` taken from its URL slug:
 
-- **Release** — `<artist>/<title>`, e.g. `radiohead/ok-computer`.
-- **Artist** — `<slug>`, e.g. `radiohead`.
+- **Release**: `<artist>/<title>`, e.g. `radiohead/ok-computer`.
+- **Artist**: `<slug>`, e.g. `radiohead`.
 
 These are the cross-link anchors used for joining releases and artists across
 datasets and integrations.
@@ -13,12 +13,11 @@ datasets and integrations.
 ## Converters
 
 `pyrateyourmusic.ids` flattens models into plain dicts. Keys are
-namespaced with `rym_`; list values are JSON-encoded; scalars are stringified;
-empty values are omitted.
+namespaced with `rym_`. List values are JSON-encoded. Scalars are
+stringified. Empty values are omitted.
 
 ```python
 from pyrateyourmusic import release_to_extra, artist_to_extra
-
 release_to_extra(stub)
 # {
 #   "rym_id": "radiohead/ok-computer",
@@ -33,7 +32,6 @@ release_to_extra(stub)
 #   "rym_primary_genres": "[\"Alternative Rock\", \"Art Rock\"]",
 #   ...
 # }
-
 artist_to_extra(artist)
 # { "rym_artist_id": "radiohead", "rym_artist_name": "Radiohead",
 #   "rym_genres": "[...]", "rym_members": "[...]", ... }
@@ -41,3 +39,6 @@ artist_to_extra(artist)
 
 `release_to_extra` accepts both `Release` and `ReleaseStub`. The full key
 namespace is documented in the `pyrateyourmusic/ids.py` module docstring.
+
+---
+[← Charts](charts.md) · [Home](README.md) · [Dataset →](dataset.md)
