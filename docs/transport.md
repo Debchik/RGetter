@@ -15,14 +15,15 @@ a FlareSolverr proxy, which drives a real headless browser, gets clearance.
 | Variable | Meaning |
 | --- | --- |
 | `PYRATEYOURMUSIC_FLARESOLVERR_URL` | FlareSolverr base URL (e.g. `http://localhost:8191`) |
-| `PYRATEYOURMUSIC_FLARESOLVERR_TIMEOUT` | per-solve budget in ms (default 120000 here) |
 
 `flaresolverr_url()` returns the configured endpoint, or `None`. The live
-test suite uses this to skip when the variable is unset.
+test suite uses this to skip when the variable is unset. The solve budget
+is not read from the environment; use `set_solve_timeout(ms)` (default
+120000 ms).
 
 ## Throttling
 
-A minimum delay is enforced between requests (default 2.0 s):
+A minimum delay is enforced between requests (default 5.0 s):
 
 ```python
 from pyrateyourmusic import set_delay

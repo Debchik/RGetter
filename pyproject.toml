@@ -27,9 +27,9 @@ test = ["pytest"]
 dataset = ["datasets"]
 
 [project.urls]
-Homepage = "https://github.com/TigreGotico/pyrateyourmusic"
-Source = "https://github.com/TigreGotico/pyrateyourmusic"
-"Bug Tracker" = "https://github.com/TigreGotico/pyrateyourmusic/issues"
+Homepage = "https://github.com/LeMetadatarr/pyrateyourmusic"
+Source = "https://github.com/LeMetadatarr/pyrateyourmusic"
+"Bug Tracker" = "https://github.com/LeMetadatarr/pyrateyourmusic/issues"
 
 [tool.setuptools.dynamic]
 version = { attr = "pyrateyourmusic.version.__version__" }
