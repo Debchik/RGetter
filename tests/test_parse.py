@@ -66,6 +66,16 @@ class TestParseArtist:
         assert first["rating"] is not None
         assert first["n_ratings"] is not None
 
+    def test_discography_artist_id(self, artist_html):
+        # Regression: discography rows must carry the *artist's* slug, not
+        # the release-title slug (artist_slug_from_url was being called with
+        # the release URL, whose last path segment is the title, not the
+        # artist).
+        a = parse_artist_page(artist_html, "radiohead")
+        assert a["discography"]
+        for d in a["discography"]:
+            assert d["artist_id"] == "radiohead"
+
 
 class TestParseRelease:
     def test_basics(self, release_html):

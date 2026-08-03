@@ -81,6 +81,14 @@ class TestLiveArtistFixture:
         assert pablo is not None
         assert pablo["year"] == 1993
 
+    def test_discography_artist_id(self, artist_live_html):
+        # Regression: every discography row's artist_id must be the artist's
+        # own slug, not a slug derived from the release URL.
+        a = parse_artist_page(artist_live_html, "radiohead")
+        assert a["discography"]
+        for d in a["discography"]:
+            assert d["artist_id"] == "radiohead"
+
 
 class TestWaybackReleaseFixture:
     """Tests using a Wayback Machine snapshot of a release detail page.

@@ -233,7 +233,7 @@ def parse_artist_page(html: str, slug: str) -> dict:
             else:
                 info[field] = clean(val.get_text(" "))
 
-    disco = _parse_discography(soup)
+    disco = _parse_discography(soup, slug)
 
     return {
         "rym_id": slug,
@@ -250,7 +250,7 @@ def parse_artist_page(html: str, slug: str) -> dict:
     }
 
 
-def _parse_discography(soup: BeautifulSoup) -> List[dict]:
+def _parse_discography(soup: BeautifulSoup, artist_slug: str) -> List[dict]:
     out: List[dict] = []
     seen = set()
     artist_name = ""
@@ -287,7 +287,7 @@ def _parse_discography(soup: BeautifulSoup) -> List[dict]:
             "title": title,
             "artist": artist_name,
             "url": url,
-            "artist_id": artist_slug_from_url(url) or "",
+            "artist_id": artist_slug,
             "release_type": release_type_from_url(url),
             "year": year,
             "date": date,
