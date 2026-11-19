@@ -32,6 +32,8 @@ def _build_release(
     html: str, rym_id: str, release_type: str = "album", source: str = "live"
 ) -> Release:
     raw = parse_release_page(html, rym_id, release_type=release_type)
+    if not raw["title"] or not raw["artist"]:
+        raise RuntimeError(f"Missing release identity in HTML for {rym_id}; possibly a block page")
     tracks = [Track(position=p, title=t, duration=d) for p, t, d in raw.pop("tracklist")]
     return Release(**raw, tracklist=tracks, source=source)
 
