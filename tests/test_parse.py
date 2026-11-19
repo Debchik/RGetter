@@ -100,3 +100,23 @@ class TestParseRelease:
         pos, title, dur = r["tracklist"][1]
         assert title == "Paranoid Android"
         assert dur == "6:23"
+
+
+def test_release_title_beginning_with_by():
+    """The word By is not a reliable separator between title and artist."""
+    html = """<div class="album_title">By the Way
+              <span class="album_artist_small">By
+                <a class="artist" href="/artist/example">Example</a>
+              </span></div>"""
+    release = parse_release_page(html, "example/by-the-way")
+    assert release["title"] == "By the Way"
+
+
+def test_release_type_preserved_when_info_table_missing():
+    html = """<div class="album_title">Test EP
+              <span class="album_artist_small">By
+                <a class="artist" href="/artist/example">Example</a>
+              </span></div>"""
+    release = parse_release_page(html, "example/test-ep", release_type="ep")
+    assert release["release_type"] == "ep"
+    assert "/release/ep/" in release["url"]
