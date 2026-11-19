@@ -61,6 +61,23 @@ Release **detail** pages are also rate-limited at the origin and often
 return a 503 from datacenter IPs. `get_release` raises `RuntimeError` in
 that case. See [docs/transport.md](docs/transport.md).
 
+## Spotify single-track matching (offline first)
+
+For a large Spotify catalog, the `pyrateyourmusic.matching` module creates
+**unverified** RYM single and song URL candidates from a joined Spotify CSV,
+deduplicates them in SQLite and supports explicit validation against saved
+RYM HTML. The input is limited to `album_type=single` and `total_tracks=1`.
+
+```bash
+python -m pyrateyourmusic.matching ingest joined_singles.csv matches.sqlite
+python -m pyrateyourmusic.matching export matches.sqlite candidate_urls.csv
+```
+
+See [docs/singles-matching.md](docs/singles-matching.md) for the required
+Spotify column names, relation keys, SQL join, and verification limitations.
+Candidate generation makes no network requests. Live RYM access requires
+appropriate permissions under the site's terms of service.
+
 ## Docs and examples
 
 - Docs: [`docs/`](docs/), covering quickstart, transport, models, charts, ids, and dataset.
