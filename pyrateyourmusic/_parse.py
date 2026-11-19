@@ -307,7 +307,7 @@ def _parse_discography(soup: BeautifulSoup, artist_slug: str) -> List[dict]:
 # Release detail page
 # --------------------------------------------------------------------------- #
 
-def parse_release_page(html: str, rym_id: str) -> dict:
+def parse_release_page(html: str, rym_id: str, release_type: str = "album") -> dict:
     """Parse a release detail page into a raw dict matching the Release
     dataclass (``tracklist`` is a list of (position, title, duration) tuples).
     """
@@ -324,8 +324,8 @@ def parse_release_page(html: str, rym_id: str) -> dict:
             artist = clean(artist_a.get_text(" "))
             artist_id = artist_slug_from_url(_abs(artist_a.get("href", "")))
         # title text is the leading text node before the "By <artist>" span
-        raw = clean(title_el.get_text(" "))
-        title = clean(re.split(r"\bBy\b", raw)[0]) if raw else ""
+        # Extract direct text only: a title may legitimately start with "By".
+        title = clean(" ".join(str(t) for t in title_el.find_all(string=True, recursive=False)))
     if not artist:
         a = soup.select_one(".album_info a.artist, a.artist")
         if a:
@@ -333,6 +333,7 @@ def parse_release_page(html: str, rym_id: str) -> dict:
             artist_id = artist_slug_from_url(_abs(a.get("href", "")))
 
     info = _parse_release_info(soup)
+    info.setdefault("release_type", release_type)
     tracklist = _parse_tracklist(soup)
 
     cover = ""
