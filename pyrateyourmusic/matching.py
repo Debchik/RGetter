@@ -12,7 +12,7 @@ import re
 import sqlite3
 import unicodedata
 from pathlib import Path
-from urllib.parse import quote, urlparse
+from urllib.parse import quote, urlparse, urljoin
 
 from bs4 import BeautifulSoup
 
@@ -215,6 +215,25 @@ def page_identity(html: str) -> tuple[str, str, str, str]:
                 artist_el.get_text(" ", strip=True) if artist_el else "",
                 direct.strip())
     return (canonical, "", "", "")
+
+
+
+def song_links_in_single(html: str) -> list[str]:
+    """Extract *actual* /song/ links from a saved single's tracklist.
+
+    A linked song is evidence of a RYM relationship, not yet a verified
+    match to any Spotify recording.
+    """
+    canonical, kind, _, _ = page_identity(html)
+    if kind != "single" or not canonical.startswith("/release/single/"):
+        return []
+    soup = BeautifulSoup(html, "html.parser")
+    urls: list[str] = []
+    for anchor in soup.select('#tracks a.song[href*="/song/"]'):
+        url = urljoin(RYM + "/", str(anchor.get("href") or ""))
+        if _canonical(url).startswith("/song/") and url not in urls:
+            urls.append(url)
+    return urls
 
 
 def verify_html(sqlite_path: str | Path, url: str, html: str) -> dict:
