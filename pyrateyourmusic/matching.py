@@ -24,9 +24,9 @@ REQUIRED = {
 
 
 def identity(value: str) -> str:
-    """Comparison key only, not an RYM slug."""
-    value = unicodedata.normalize("NFKC", value).casefold()
-    return "".join(c for c in value if c.isalnum())
+    """Conservative matching key: preserve punctuation to prevent collisions."""
+    value = unicodedata.normalize("NFKC", value).casefold().replace("’", "'")
+    return re.sub(r"\\s+", " ", value).strip()
 
 
 def slug_variants(value: str) -> list[str]:
@@ -244,6 +244,12 @@ def verify_html(sqlite_path: str | Path, url: str, html: str) -> dict:
     """
     expected = _canonical(url)
     canonical, kind, artist, title = page_identity(html)
+    # A blocked/error page is not evidence of a mismatch. Leave existing
+    # verification statuses unchanged so retrying cannot erase confirmed data.
+    if not canonical or not kind or not artist or not title:
+        return {"url": url, "canonical_path": canonical, "kind": kind,
+                "observed_artist": artist, "observed_title": title,
+                "checked": 0, "verified": 0, "error": "unreadable_page"}
     db = connect(sqlite_path)
     updated = verified = 0
     try:
