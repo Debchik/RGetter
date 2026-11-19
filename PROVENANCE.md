@@ -19,7 +19,7 @@ non-commercial** use; attribute RateYourMusic and link back to the source page
 
 ## Polite scraping
 
-- A minimum delay between requests (`set_delay`, default 2.0 s).
+- A minimum delay between requests (`set_delay`, default 5.0 s).
 - FlareSolverr is used to satisfy Cloudflare; no additional headed browser.
 - Crawls are seeded from charts and named artists, not blind link-following.
 - Release detail pages are rate-limited at the origin and may 503; the client
