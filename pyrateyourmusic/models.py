@@ -46,6 +46,7 @@ class Release:
     descriptors: List[str] = field(default_factory=list)
     tracklist: List[Track] = field(default_factory=list)
     cover_url: str = ""
+    source: str = "live"       # origin of fetched HTML: live or wayback
 
     def __str__(self) -> str:
         y = f" ({self.year})" if self.year else ""
@@ -84,6 +85,7 @@ class Release:
             "tracklist": [t.as_dict for t in self.tracklist],
             "track_count": self.track_count,
             "cover_url": self.cover_url,
+            "source": self.source,
         }
 
 
