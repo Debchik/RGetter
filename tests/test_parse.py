@@ -120,3 +120,23 @@ def test_release_type_preserved_when_info_table_missing():
     release = parse_release_page(html, "example/test-ep", release_type="ep")
     assert release["release_type"] == "ep"
     assert "/release/ep/" in release["url"]
+
+
+def test_realistic_rym_single_tracklist_not_duplicated():
+    """Real RYM <li class=track> wraps a nested .tracklist_line."""
+    html = """<div class="album_title">Yung Hefner
+                <span class="album_artist_small">By <a class="artist" href="/artist/morgenshtern">Morgenshtern</a></span>
+              </div>
+              <ul id="tracks"><li class="track">
+                <div class="tracklist_line">
+                  <span class="tracklist_num">1</span>
+                  <span class="tracklist_title">
+                    <span><a class="song" href="/song/morgenshtern/yung-hefner/">Yung Hefner</a>
+                    <a class="tracks_lyric_link">lyrics</a>
+                    <span class="tracklist_duration">2:15</span></span>
+                  </span>
+                </div>
+              </li></ul>"""
+    result = parse_release_page(html, "morgenshtern/yung-hefner", release_type="single")
+    assert len(result["tracklist"]) == 1
+    assert result["tracklist"][0] == ("1", "Yung Hefner", "2:15")
