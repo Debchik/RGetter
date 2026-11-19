@@ -81,3 +81,15 @@ def test_reject_wrong_song_identity(tmp_path):
     <div id="page_song_temp_section_header"><h1>Another Song</h1></div>
     <h2 class="page_song_header_info_artist"><a class="artist">Morgenshtern</a></h2>""")
     assert verify_html(db, url, html)["verified"] == 0
+
+
+def test_song_links_in_realistic_single_markup():
+    from pyrateyourmusic.matching import song_links_in_single
+    html = """<meta property="og:url"
+               content="https://rateyourmusic.com/release/single/morgenshtern/yung-hefner/">
+              <ul id="tracks"><li class="track"><span class="tracklist_title">
+              <a class="song" href="/song/morgenshtern/yung-hefner/">Yung Hefner</a>
+              </span></li></ul>"""
+    assert song_links_in_single(html) == [
+        "https://rateyourmusic.com/song/morgenshtern/yung-hefner/"
+    ]
