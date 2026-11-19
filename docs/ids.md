@@ -2,7 +2,7 @@
 
 ## The `rym_id` anchor
 
-Every object carries a canonical, stable `rym_id` taken from its URL slug:
+Every object carries an `rym_id` taken from the URL slug. For releases this short slug is **not unique across release types**; use `rym_release_key` (`release_type/rym_id`) as the collision-safe key:
 
 - **Release**: `<artist>/<title>`, e.g. `radiohead/ok-computer`.
 - **Artist**: `<slug>`, e.g. `radiohead`.
