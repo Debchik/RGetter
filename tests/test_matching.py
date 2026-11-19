@@ -93,3 +93,21 @@ def test_song_links_in_realistic_single_markup():
     assert song_links_in_single(html) == [
         "https://rateyourmusic.com/song/morgenshtern/yung-hefner/"
     ]
+
+
+def test_unreadable_page_does_not_erase_verified_status(tmp_path):
+    db = tmp_path / "db.sqlite"
+    ingest_singles(_csv(tmp_path), db)
+    url = "https://rateyourmusic.com/release/single/morgenshtern/yung-hefner/"
+    html = """<meta property="og:url"
+                  content="https://rateyourmusic.com/release/single/morgenshtern/yung-hefner/">
+              <div class="album_title">Yung Hefner
+              <div class="album_artist_small"><a class="artist">Morgenshtern</a></div>
+              </div>"""
+    assert verify_html(db, url, html)["verified"] == 1
+    assert verify_html(db, url, "<h1>Cloudflare challenge</h1>")["checked"] == 0
+    output = tmp_path / "url_status.csv"
+    export_candidates(db, output)
+    with output.open(newline="", encoding="utf-8") as f:
+        rows = list(csv.DictReader(f))
+    assert any(r["url"] == url and r["status"] == "verified" for r in rows)
