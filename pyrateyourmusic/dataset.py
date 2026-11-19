@@ -24,7 +24,7 @@ from pyrateyourmusic.transport import set_delay
 
 def _release_key(stub) -> str:
     """Include release type in the export key (album/single title collisions)."""
-    return f"{stub.release_type}/{stub.rym_id}"
+    return stub.release_key
 
 
 def _load_done(path: Path) -> Set[str]:
