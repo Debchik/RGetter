@@ -26,7 +26,7 @@ REQUIRED = {
 def identity(value: str) -> str:
     """Conservative matching key: preserve punctuation to prevent collisions."""
     value = unicodedata.normalize("NFKC", value).casefold().replace("’", "'")
-    return re.sub(r"\\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip()
 
 
 def slug_variants(value: str) -> list[str]:
