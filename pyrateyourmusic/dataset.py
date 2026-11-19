@@ -22,6 +22,11 @@ from pyrateyourmusic.charts import get_chart
 from pyrateyourmusic.transport import set_delay
 
 
+def _release_key(stub) -> str:
+    """Include release type in the export key (album/single title collisions)."""
+    return f"{stub.release_type}/{stub.rym_id}"
+
+
 def _load_done(path: Path) -> Set[str]:
     if not path.exists():
         return set()
@@ -51,13 +56,14 @@ def export_chart(
     stubs = get_chart(chart_path)
     with open(jsonl, "a", encoding="utf-8") as fh, open(done_path, "a", encoding="utf-8") as df:
         for n, stub in enumerate(stubs, 1):
-            if stub.rym_id in done:
+            key = _release_key(stub)
+            if key in done:
                 continue
             fh.write(json.dumps(stub.as_dict, ensure_ascii=False) + "\n")
             fh.flush()
-            df.write(stub.rym_id + "\n")
+            df.write(key + "\n")
             df.flush()
-            done.add(stub.rym_id)
+            done.add(key)
             sys.stderr.write(f"\r  releases {n}/{len(stubs)} ({stub.rym_id})   ")
             sys.stderr.flush()
     sys.stderr.write("\n")
@@ -84,6 +90,11 @@ def export_artists(
     a_jsonl = out / "artists.jsonl"
     a_done_path = out / "artists.done"
     a_done = _load_done(a_done_path)
+    # Tracks successful completion of a *whole* discography separately from
+    # artist metadata. A crash while appending releases must not mark the
+    # whole artist as finished.
+    d_done_path = out / "artists_discography.done"
+    d_done = _load_done(d_done_path)
 
     r_jsonl = out / "releases.jsonl"
     r_done_path = out / "releases.done"
@@ -93,30 +104,37 @@ def export_artists(
     total = len(slugs)
     with open(a_jsonl, "a", encoding="utf-8") as af, \
             open(a_done_path, "a", encoding="utf-8") as adf, \
+            open(d_done_path, "a", encoding="utf-8") as ddf, \
             open(r_jsonl, "a", encoding="utf-8") as rf, \
             open(r_done_path, "a", encoding="utf-8") as rdf:
         for n, slug in enumerate(slugs, 1):
-            if slug in a_done:
+            if slug in a_done and (not with_discography_releases or slug in d_done):
                 continue
             try:
                 artist = get_artist(slug)
             except Exception as exc:  # noqa: BLE001 - skip & continue
                 sys.stderr.write(f"\n  skip {slug}: {exc}\n")
                 continue
-            af.write(json.dumps(artist.as_dict, ensure_ascii=False) + "\n")
-            af.flush()
-            adf.write(slug + "\n")
-            adf.flush()
-            a_done.add(slug)
+            if slug not in a_done:
+                af.write(json.dumps(artist.as_dict, ensure_ascii=False) + "\n")
+                af.flush()
+                adf.write(slug + "\n")
+                adf.flush()
+                a_done.add(slug)
             if with_discography_releases:
                 for stub in artist.discography:
-                    if stub.rym_id in r_done:
+                    key = _release_key(stub)
+                    if key in r_done:
                         continue
                     rf.write(json.dumps(stub.as_dict, ensure_ascii=False) + "\n")
                     rf.flush()
-                    rdf.write(stub.rym_id + "\n")
+                    rdf.write(key + "\n")
                     rdf.flush()
-                    r_done.add(stub.rym_id)
+                    r_done.add(key)
+                # Only mark discography complete *after* all releases are written.
+                ddf.write(slug + "\n")
+                ddf.flush()
+                d_done.add(slug)
             sys.stderr.write(f"\r  artists {n}/{total} ({slug})   ")
             sys.stderr.flush()
     sys.stderr.write("\n")
