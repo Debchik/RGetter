@@ -42,7 +42,7 @@ deduplicated by `rym_id`.
 ## Resumability
 
 Each export keeps a `.done` sidecar (`releases.done`, `artists.done`)
-listing the `rym_id`s and slugs already written. Re-running skips them, so
+listing type-qualified release keys (`album/artist/title`, `single/artist/title`) and artist slugs already written. When discography release export is requested, `artists_discography.done` separately records finished discographies. Existing legacy `.done` files with short release IDs require migration or a fresh export. Re-running skips them, so
 an interrupted crawl continues where it stopped. JSONL and the sidecar are
 flushed after every row.
 
