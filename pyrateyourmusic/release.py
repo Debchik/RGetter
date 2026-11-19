@@ -28,10 +28,12 @@ from pyrateyourmusic.transport import BASE_URL, get_html
 logger = logging.getLogger(__name__)
 
 
-def _build_release(html: str, rym_id: str) -> Release:
-    raw = parse_release_page(html, rym_id)
+def _build_release(
+    html: str, rym_id: str, release_type: str = "album", source: str = "live"
+) -> Release:
+    raw = parse_release_page(html, rym_id, release_type=release_type)
     tracks = [Track(position=p, title=t, duration=d) for p, t, d in raw.pop("tracklist")]
-    return Release(**raw, tracklist=tracks)
+    return Release(**raw, tracklist=tracks, source=source)
 
 
 def get_release(rym_id: str, release_type: str = "album") -> Release:
@@ -62,7 +64,7 @@ def get_release(rym_id: str, release_type: str = "album") -> Release:
     # 1. Live fetch
     try:
         html = get_html(path)
-        return _build_release(html, rym_id)
+        return _build_release(html, rym_id, release_type=release_type, source="live")
     except RuntimeError as live_err:
         logger.warning("Live fetch blocked (503) for %s — trying Wayback", url)
         _live_err = live_err
@@ -73,7 +75,7 @@ def get_release(rym_id: str, release_type: str = "album") -> Release:
         html = wayback_html(url)
         if html:
             logger.info("Serving %s from Wayback Machine (stale snapshot)", url)
-            return _build_release(html, rym_id)
+            return _build_release(html, rym_id, release_type=release_type, source="wayback")
     except Exception as wb_err:
         logger.warning("Wayback fetch failed for %s: %s", url, wb_err)
 
