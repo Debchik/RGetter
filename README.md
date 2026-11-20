@@ -61,22 +61,32 @@ Release **detail** pages are also rate-limited at the origin and often
 return a 503 from datacenter IPs. `get_release` raises `RuntimeError` in
 that case. See [docs/transport.md](docs/transport.md).
 
-## Spotify single-track matching (offline first)
+## Spotify track-first matching (offline first)
 
-For a large Spotify catalog, the `pyrateyourmusic.matching` module creates
-**unverified** RYM single and song URL candidates from a joined Spotify CSV,
-deduplicates them in SQLite and supports explicit validation against saved
-RYM HTML. The input is limited to `album_type=single` and `total_tracks=1`.
+For the current Spotify catalog, join **tracks.artist_rowids → artists.rowid**
+using [sql/track_artists.yql](sql/track_artists.yql). There is **no need**
+to join Spotify album tables. The resulting CSV has track + artist names and
+IDs. Each input row generates possible RYM **song and single URLs** without
+assuming the Spotify recording belongs to a single.
 
 ```bash
-python -m pyrateyourmusic.matching ingest joined_singles.csv matches.sqlite
-python -m pyrateyourmusic.matching export matches.sqlite candidate_urls.csv
+python -m pyrateyourmusic.matching ingest-tracks \
+  examples/tracks_artists.example.csv matches.sqlite --kinds both
+python -m pyrateyourmusic.matching export matches.sqlite candidates.csv
+python -m pyrateyourmusic.matching export-links matches.sqlite spotify_candidates.csv
 ```
 
-See [docs/singles-matching.md](docs/singles-matching.md) for the required
-Spotify column names, relation keys, SQL join, and verification limitations.
-Candidate generation makes no network requests. Live RYM access requires
-appropriate permissions under the site's terms of service.
+For existing saved RYM HTML, `verify-batch` reads a `url,html_path` manifest
+and `export-verified` saves confirmed page matches and available release-level
+genres/descriptors. **Guessed URLs are not matched tracks**.
+
+- [Track-first workflow and commands](docs/track-first.md)
+- [Instructions for local data/coding agent](LOCAL_AGENT_TASK.md)
+- [Legacy one-track Spotify single workflow](docs/singles-matching.md)
+
+Generating candidates does not send network requests. Fetching RYM HTML
+requires an authorized data source; the package does not grant permission
+to bypass access restrictions.
 
 ## Docs and examples
 
