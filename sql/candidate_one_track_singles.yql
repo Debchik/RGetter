@@ -1,0 +1,94 @@
+-- Candidate Spotify single relation: NOT an authoritative track->album join.
+--
+-- Use only when the Spotify catalog has no track->album foreign key.
+-- Hypothesis: a track's credited artist and exact track name match the
+-- credited artist and title of a Spotify "single" with exactly 1 track.
+-- This may produce false positives (unrelated homonyms, duplicate releases,
+-- cover versions, compilations, different versions) and false negatives
+-- (remixes, alternate titles, spelling differences, etc.).
+--
+-- The output conforms to pyrateyourmusic.matching ingest, but MUST be
+-- treated as an unverified candidate source. Only verified source joins
+-- should be used for release-level ground truth.
+-- The join is intentionally EXACT case-sensitive title equality.
+
+$tracks = (
+    SELECT
+        sp_rowid,
+        sp_id,
+        sp_title,
+        artist_rowids,
+        duration_ms,
+        isrc,
+        original_release_date
+    FROM `//PATH/TO/INTERSECTED_TRACKS`
+);
+
+$track_artist_pairs = (
+    SELECT
+        sp_rowid,
+        sp_id,
+        sp_title,
+        artist_rowid,
+        duration_ms,
+        isrc,
+        original_release_date
+    FROM $tracks
+    FLATTEN LIST BY artist_rowids AS artist_rowid
+);
+
+$single_releases = (
+    SELECT rowid, id, name, album_type, total_tracks, release_date
+    FROM `//PATH/TO/ALBUMS`
+    WHERE album_type = "single"
+      AND CAST(total_tracks AS Int64) = 1
+);
+
+$credited_singles = (
+    SELECT
+        a.artist_rowid AS artist_rowid,
+        s.id AS spotify_single_id,
+        s.name AS single_name,
+        s.album_type AS album_type,
+        s.total_tracks AS total_tracks,
+        s.release_date AS release_date
+    FROM $single_releases AS s
+    JOIN `//PATH/TO/ARTIST_ALBUMS` AS a
+      ON s.rowid = a.album_rowid
+    WHERE COALESCE(a.is_appears_on, 0) = 0
+      AND COALESCE(a.is_implicit_appears_on, 0) = 0
+);
+
+$potential_single_tracks = (
+    SELECT
+        t.sp_id AS spotify_track_id,
+        t.sp_title AS spotify_track_name,
+        t.artist_rowid AS artist_rowid,
+        s.spotify_single_id AS spotify_single_id,
+        s.single_name AS single_name,
+        s.album_type AS album_type,
+        s.total_tracks AS total_tracks,
+        s.release_date AS release_date,
+        t.duration_ms AS duration_ms,
+        t.isrc AS isrc
+    FROM $track_artist_pairs AS t
+    JOIN $credited_singles AS s
+      ON t.artist_rowid = s.artist_rowid
+      AND t.sp_title = s.single_name
+);
+
+SELECT DISTINCT
+    t.spotify_track_id AS spotify_track_id,
+    t.spotify_track_name AS spotify_track_name,
+    t.spotify_single_id AS spotify_single_id,
+    t.single_name AS single_name,
+    a.id AS spotify_artist_id,
+    a.name AS artist_name,
+    t.album_type AS album_type,
+    t.total_tracks AS total_tracks,
+    t.release_date AS release_date,
+    t.duration_ms AS duration_ms,
+    t.isrc AS isrc,
+    "artist_rowid_and_exact_title_heuristic" AS spotify_join_method
+FROM $potential_single_tracks AS t
+JOIN `//PATH/TO/ARTISTS` AS a ON t.artist_rowid = a.rowid;
