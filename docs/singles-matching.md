@@ -10,8 +10,8 @@ Export one row per Spotify track + single + credited artist. Required columns:
 
 | Column | Source | Meaning |
 |---|---|---|
-| `spotify_track_id` | tracks.`id` | Stable Spotify track identifier |
-| `spotify_track_name` | tracks.`name` | Track name |
+| `spotify_track_id` | intersected tracks.`sp_id` | Spotify track identifier from target population |
+| `spotify_track_name` | intersected tracks.`sp_title` | Track name from target population |
 | `spotify_single_id` | albums.`id` | Stable Spotify release identifier |
 | `single_name` | albums.`name` | Single name |
 | `spotify_artist_id` | artists.`id` | Stable Spotify artist identifier |
@@ -19,8 +19,8 @@ Export one row per Spotify track + single + credited artist. Required columns:
 | `album_type` | albums.`album_type` | Must equal `single` |
 | `total_tracks` | albums.`total_tracks` | Must equal `1` |
 | `release_date` | albums.`release_date` | Optional |
-| `duration_ms` | tracks | Optional for future disambiguation |
-| `isrc` | tracks | Optional for future cross-linking |
+| `duration_ms` | source track tables, if available | Optional for future disambiguation |
+| `isrc` | intersected tracks.`isrc` | Optional for future cross-linking |
 
 **Key rule:** `rowid` columns are *local database keys*, whereas `id`
 columns are external Spotify IDs. In the uploaded examples,
@@ -32,6 +32,58 @@ assume a `tracks.album_rowid` exists without inspecting the real table schema.
 
 A reliable export must begin with the complete related tables, not separate
 `LIMIT 100` extracts: otherwise their foreign key ranges need not intersect.
+
+### Intersected Spotify/VK track table: fields actually observed
+
+The November 20 uploaded sample (one successful row followed by a
+YTsaurus `code=315` error) exposes the following **scalar** columns:
+`sp_id`, `sp_title`, `sp_rowid`, `isrc`,
+`original_release_date`, `vk_id`, `vk_title`,
+`vk_album_id`, `vk_uma_track_id`, `vk_title_lang`,
+`vk_original_release_date`, `popularity`, and `vk_genres`.
+
+Crucially, **`vk_album_id` is a VK album identifier**, not an FK to
+`albums.rowid`. **`sp_rowid` identifies a Spotify track**, but does not
+by itself identify the Spotify album in which that track appears.
+There is **no observed Spotify album foreign key** in the exported row.
+
+A safe first step in YTsaurus/YQL is to project only known scalar fields,
+excluding `vk_genres` and other possibly composite columns:
+
+```sql
+SELECT
+    sp_rowid,
+    sp_id AS spotify_track_id,
+    sp_title AS spotify_track_name,
+    isrc,
+    original_release_date
+FROM `//YOUR/PATH/TO/INTERSECTED_TRACKS`
+LIMIT 100;
+```
+
+This is a **diagnostic export**, not yet a joined matcher input. If the
+intersected table contains composite-typed values, exporting `SELECT *`
+can fail with error 315 (`Values of type "composite" are not supported
+by the chosen format`). Explicit projection to scalar columns avoids
+trying to serialize those values. See
+[YTsaurus SELECT](https://ytsaurus.tech/docs/en/yql/syntax/select/) and
+[data types](https://ytsaurus.tech/docs/en/user-guide/data-processing/chyt/reference/data-types).
+
+The unresolved part is the **Spotify track ↔ Spotify album** relation.
+To complete the pipeline, inspect the source Spotify track schema or the
+associated track–album link table, and provide the relevant FK columns
+(and 20–100 rows with matching keys). The likely shape is an association
+between a Spotify track row ID and `albums.rowid`, **but its actual names
+and existence must be confirmed**. An ISRC may be useful for resolving
+a target track to a Spotify track catalog record, but ISRC is not a unique
+track↔release association.
+
+Once that verified relation is available, attach
+`intersected_tracks.sp_rowid` to the authoritative Spotify track row,
+then attach the *actual* album FK/association table, then filter
+`albums.album_type='single' AND albums.total_tracks=1`, and finally
+join `artist_albums → artists`. Do not equate a single's title with
+the Spotify song title when both are available.
 
 ### Verified portion of SQL: single–artist association
 
