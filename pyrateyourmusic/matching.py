@@ -117,7 +117,8 @@ def connect(path: str | Path) -> sqlite3.Connection:
     return db
 
 
-def _insert_entity(db: sqlite3.Connection, row: dict, kind: str, title: str) -> None:
+def _insert_entity(db: sqlite3.Connection, row: dict, kind: str, title: str,
+                   max_urls: int = 8) -> None:
     artist = row["artist_name"].strip()
     key = _entity_key(kind, artist, title)
     created = db.execute(
@@ -132,7 +133,9 @@ def _insert_entity(db: sqlite3.Connection, row: dict, kind: str, title: str) -> 
     if created:
         db.executemany(
             "INSERT OR IGNORE INTO candidates(entity_key,url,rank) VALUES (?,?,?)",
-            ((key, u, rank) for rank, u in enumerate(urls_for(kind, artist, title), 1)),
+            ((key, u, rank) for rank, u in enumerate(
+                urls_for(kind, artist, title, max_urls=max_urls), 1
+            )),
         )
 
 
@@ -201,6 +204,7 @@ def ingest_tracks(
     batch_size: int = 2000,
     limit: int | None = None,
     kinds: tuple[str, ...] = ("song", "single"),
+    max_urls_per_kind: int = 2,
 ) -> dict:
     """Generate song + single URL *hypotheses* from track/artist rows.
 
@@ -212,6 +216,8 @@ def ingest_tracks(
         raise ValueError("batch_size must be positive")
     if not kinds or any(kind not in {"song", "single"} for kind in kinds):
         raise ValueError("kinds must contain song, single, or both")
+    if not 1 <= max_urls_per_kind <= 8:
+        raise ValueError("max_urls_per_kind must be between 1 and 8")
     db = connect(sqlite_path)
     rows = eligible = skipped = 0
     try:
@@ -255,7 +261,10 @@ def ingest_tracks(
                     "artist_name": artist_name,
                 }
                 for kind in kinds:
-                    _insert_entity(db, link_row, kind, track_title)
+                    _insert_entity(
+                        db, link_row, kind, track_title,
+                        max_urls=max_urls_per_kind
+                    )
                 if rows % batch_size == 0:
                     db.commit()
         db.commit()
@@ -536,6 +545,7 @@ def main() -> None:
     tracks.add_argument("sqlite")
     tracks.add_argument("--limit", type=int)
     tracks.add_argument("--batch-size", type=int, default=2000)
+    tracks.add_argument("--max-urls-per-kind", type=int, default=2)
     tracks.add_argument(
         "--kinds", choices=["song", "single", "both"], default="both",
         help="Choose URL families to propose (default: both)"
@@ -565,7 +575,8 @@ def main() -> None:
     elif args.command == "ingest-tracks":
         kinds = ("song", "single") if args.kinds == "both" else (args.kinds,)
         print(ingest_tracks(args.csv, args.sqlite, batch_size=args.batch_size,
-                            limit=args.limit, kinds=kinds))
+                            limit=args.limit, kinds=kinds,
+                            max_urls_per_kind=args.max_urls_per_kind))
     elif args.command == "export":
         print(f"Exported {export_candidates(args.sqlite, args.csv)} candidate relations")
     elif args.command == "export-links":
