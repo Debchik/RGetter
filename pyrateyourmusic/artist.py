@@ -14,6 +14,8 @@ from pyrateyourmusic.transport import get_html
 
 def _build_artist(html: str, slug: str) -> Artist:
     raw = parse_artist_page(html, slug)
+    if not raw["name"]:
+        raise RuntimeError(f"Missing artist identity in HTML for {slug}; possibly a block page")
     disco = [ReleaseStub(**d) for d in raw.pop("discography")]
     return Artist(**raw, discography=disco)
 

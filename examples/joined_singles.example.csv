@@ -1,0 +1,3 @@
+spotify_track_id,spotify_track_name,spotify_single_id,single_name,spotify_artist_id,artist_name,album_type,total_tracks,release_date,duration_ms,isrc
+demo-track-001,Yung Hefner,demo-single-001,Yung Hefner,demo-artist-001,Morgenshtern,single,1,2020-01-01,135000,
+demo-track-002,Swim,demo-single-002,Keep Swimming,demo-artist-002,BTS,single,3,2026-01-01,159000,

@@ -30,7 +30,10 @@ def get_chart(path: str = "/charts/top/album/all-time/") -> List[ReleaseStub]:
         ``position`` set to the in-page rank.
     """
     html = get_html(path)
-    return _stubs_from_html(html)
+    stubs = _stubs_from_html(html)
+    if not stubs:
+        raise RuntimeError(f"No chart rows parsed for {path}; check for blocked or changed HTML")
+    return stubs
 
 
 def top_albums(period: str = "all-time") -> List[ReleaseStub]:

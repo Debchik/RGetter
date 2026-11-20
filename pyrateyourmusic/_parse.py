@@ -307,7 +307,7 @@ def _parse_discography(soup: BeautifulSoup, artist_slug: str) -> List[dict]:
 # Release detail page
 # --------------------------------------------------------------------------- #
 
-def parse_release_page(html: str, rym_id: str) -> dict:
+def parse_release_page(html: str, rym_id: str, release_type: str = "album") -> dict:
     """Parse a release detail page into a raw dict matching the Release
     dataclass (``tracklist`` is a list of (position, title, duration) tuples).
     """
@@ -324,8 +324,8 @@ def parse_release_page(html: str, rym_id: str) -> dict:
             artist = clean(artist_a.get_text(" "))
             artist_id = artist_slug_from_url(_abs(artist_a.get("href", "")))
         # title text is the leading text node before the "By <artist>" span
-        raw = clean(title_el.get_text(" "))
-        title = clean(re.split(r"\bBy\b", raw)[0]) if raw else ""
+        # Extract direct text only: a title may legitimately start with "By".
+        title = clean(" ".join(str(t) for t in title_el.find_all(string=True, recursive=False)))
     if not artist:
         a = soup.select_one(".album_info a.artist, a.artist")
         if a:
@@ -333,6 +333,7 @@ def parse_release_page(html: str, rym_id: str) -> dict:
             artist_id = artist_slug_from_url(_abs(a.get("href", "")))
 
     info = _parse_release_info(soup)
+    info.setdefault("release_type", release_type)
     tracklist = _parse_tracklist(soup)
 
     cover = ""
@@ -409,12 +410,23 @@ def _parse_tracklist(soup: BeautifulSoup) -> List[tuple]:
     table = soup.select_one("#tracks, ul#tracks, table#tracks, .tracklist")
     rows = []
     if table:
-        rows = table.select("li.track, tr.track, .tracklist_line")
+        # A real RYM li.track contains a nested .tracklist_line: selecting
+        # both double-counts every song.
+        rows = table.select("li.track, tr.track")
+        if not rows:
+            rows = table.select(".tracklist_line")
     if not rows:
-        rows = soup.select("li.track, .tracklist_line")
+        rows = soup.select("li.track, tr.track")
+        if not rows:
+            rows = soup.select(".tracklist_line")
     for row in rows:
         num_el = row.select_one(".tracklist_num, .track_num, .num")
-        title_el = row.select_one(".tracklist_title .rendered_text, .tracklist_title, .song, .track_name")
+        # Prefer the actual song anchor: .tracklist_title can also contain
+        # lyrics links and a nested duration.
+        title_el = row.select_one(
+            ".tracklist_title a.song, .tracklist_title .rendered_text,"
+            " .tracklist_title, .song, .track_name"
+        )
         dur_el = row.select_one(".tracklist_duration, .track_duration, .duration")
         position = clean(num_el.get_text()) if num_el else ""
         title = clean(title_el.get_text(" ")) if title_el else ""

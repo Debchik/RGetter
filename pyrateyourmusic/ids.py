@@ -47,6 +47,7 @@ def release_to_extra(release: "Union[Release, ReleaseStub]") -> dict:
     """Convert a Release or ReleaseStub to a flat ``rym_*``-keyed dict."""
     extra: dict = {
         "rym_id": release.rym_id,
+        "rym_release_key": release.release_key,
         "rym_url": release.url,
         "rym_title": release.title,
     }

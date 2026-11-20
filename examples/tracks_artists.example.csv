@@ -1,0 +1,4 @@
+spotify_track_id,spotify_track_name,spotify_artist_id,artist_name,isrc,duration_ms,original_release_date
+demo-spotify-track-1,Yung Hefner,demo-spotify-artist-1,Morgenshtern,GBLFP1942821,135000,2019-12-20
+demo-spotify-track-1,Yung Hefner,demo-spotify-artist-2,Guest Artist,GBLFP1942821,135000,2019-12-20
+demo-spotify-track-2,Tidal,demo-spotify-artist-3,mega:oba,,210000,

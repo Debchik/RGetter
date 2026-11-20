@@ -78,3 +78,14 @@ class TestArtistToExtra:
 
     def test_no_empty_keys(self):
         assert "rym_located" not in self.e
+
+
+def test_release_key_is_type_qualified():
+    from pyrateyourmusic.models import ReleaseStub
+    album = _release()
+    single = ReleaseStub(
+        rym_id=album.rym_id, title=album.title, artist=album.artist,
+        url=album.url.replace("/album/", "/single/"), release_type="single")
+    assert album.release_key == "album/radiohead/ok-computer"
+    assert single.release_key == "single/radiohead/ok-computer"
+    assert release_to_extra(single)["rym_release_key"] != release_to_extra(album)["rym_release_key"]

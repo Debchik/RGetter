@@ -61,6 +61,33 @@ Release **detail** pages are also rate-limited at the origin and often
 return a 503 from datacenter IPs. `get_release` raises `RuntimeError` in
 that case. See [docs/transport.md](docs/transport.md).
 
+## Spotify track-first matching (offline first)
+
+For the current Spotify catalog, join **tracks.artist_rowids → artists.rowid**
+using [sql/track_artists.yql](sql/track_artists.yql). There is **no need**
+to join Spotify album tables. The resulting CSV has track + artist names and
+IDs. Each input row generates possible RYM **song and single URLs** without
+assuming the Spotify recording belongs to a single.
+
+```bash
+python -m pyrateyourmusic.matching ingest-tracks \
+  examples/tracks_artists.example.csv matches.sqlite --kinds both
+python -m pyrateyourmusic.matching export matches.sqlite candidates.csv
+python -m pyrateyourmusic.matching export-links matches.sqlite spotify_candidates.csv
+```
+
+For existing saved RYM HTML, `verify-batch` reads a `url,html_path` manifest
+and `export-verified` saves confirmed page matches and available release-level
+genres/descriptors. **Guessed URLs are not matched tracks**.
+
+- [Track-first workflow and commands](docs/track-first.md)
+- [Instructions for local data/coding agent](LOCAL_AGENT_TASK.md)
+- [Legacy one-track Spotify single workflow](docs/singles-matching.md)
+
+Generating candidates does not send network requests. Fetching RYM HTML
+requires an authorized data source; the package does not grant permission
+to bypass access restrictions.
+
 ## Docs and examples
 
 - Docs: [`docs/`](docs/), covering quickstart, transport, models, charts, ids, and dataset.

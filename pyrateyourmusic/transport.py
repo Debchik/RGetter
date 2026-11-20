@@ -64,7 +64,8 @@ def _make_session() -> Any:
     session = CloudflareSession(
         env_prefix=_ENV_PREFIX,
         flaresolverr_timeout_ms=_solve_timeout_ms,
-        wayback_fallback=True,
+        # Archive fallback is explicit in release.get_release, never silent.
+        wayback_fallback=False,
     )
     session.headers.update(_HEADERS)
     return session
@@ -84,10 +85,10 @@ def reset_session() -> None:
 
 def _throttle() -> None:
     global _last_request
-    elapsed = time.time() - _last_request
+    elapsed = time.monotonic() - _last_request
     if elapsed < _min_delay:
         time.sleep(_min_delay - elapsed)
-    _last_request = time.time()
+    _last_request = time.monotonic()
 
 
 def get_html(path: str, params: Optional[dict] = None, timeout: int = 130, **kwargs: Any) -> str:
@@ -109,13 +110,18 @@ def get_html(path: str, params: Optional[dict] = None, timeout: int = 130, **kwa
     _throttle()
     url = path if path.startswith("http") else f"{BASE_URL}{path}"
     resp = get_session().get(url, params=params, timeout=timeout, **kwargs)
-    resp.raise_for_status()
+    # A real HTTP 503 would be raised by raise_for_status(), so detect it
+    # before that call; FlareSolverr may also return a block page as HTTP 200.
     text = resp.text
-    if "HTTP ERROR 503" in text and "is currently unable to handle this request" in text:
+    if resp.status_code == 503 or (
+        "HTTP ERROR 503" in text
+        and "is currently unable to handle this request" in text
+    ):
         raise RuntimeError(
             f"rateyourmusic.com returned a 503 origin block for {url}. "
             "Release detail pages are heavily rate-limited from datacenter IPs; "
             "retry later, slow down (set_delay), or use a residential exit. "
             "Chart and artist pages remain reachable."
         )
+    resp.raise_for_status()
     return text

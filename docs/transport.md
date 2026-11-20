@@ -42,10 +42,11 @@ the solve budget to 120 s. Adjust the solve budget with
 | Artist pages (`/artist/<slug>`) | **Fully reachable**: profile + discography |
 | Release detail (`/release/<type>/…`) | **Protection-bound**: see fallback chain below |
 
-Chart and artist pages carry the same metadata fields (title, artist, date,
-rating, rating count, primary and secondary genres, descriptors) as release
-detail pages. Bulk dataset construction does not need detail-page fetches at
-all.
+Chart pages can supply title, artist, date, ratings and genres, while
+artist pages supply discography entries and artist-level genres. Mood/style
+**descriptors are not guaranteed** on normal chart pages or discography rows;
+release details (or some specialized charts) may be necessary. These pages
+must not be treated as equivalent sources for benchmark coverage.
 
 ## Release detail fallback chain
 

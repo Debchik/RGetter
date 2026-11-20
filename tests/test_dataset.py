@@ -94,3 +94,39 @@ def test_export_artists_skips_failures(monkeypatch, tmp_path):
     export_artists(["radiohead", "broken", "portishead"], out_dir=str(out_dir))
     artists = read_dataset(str(out_dir / "artists.jsonl"))
     assert {a["rym_id"] for a in artists} == {"radiohead", "portishead"}
+
+
+def test_export_artists_can_add_discography_after_metadata_only(monkeypatch, tmp_path):
+    """An artists.done entry must not suppress a later discography export."""
+    import pyrateyourmusic.dataset as dataset_mod
+    from pyrateyourmusic.models import Artist, ReleaseStub
+
+    def artist(_):
+        return Artist(
+            rym_id="radiohead", name="Radiohead", url="https://rateyourmusic.com/artist/radiohead",
+            discography=[ReleaseStub(
+                rym_id="radiohead/ok-computer", title="OK Computer", artist="Radiohead",
+                release_type="album", url="https://rateyourmusic.com/release/album/radiohead/ok-computer/",
+            )],
+        )
+
+    monkeypatch.setattr(dataset_mod, "get_artist", artist)
+    monkeypatch.setattr(dataset_mod, "set_delay", lambda s: None)
+    export_artists(["radiohead"], out_dir=str(tmp_path), with_discography_releases=False)
+    export_artists(["radiohead"], out_dir=str(tmp_path), with_discography_releases=True)
+    assert len(read_dataset(str(tmp_path / "artists.jsonl"))) == 1
+    assert len(read_dataset(str(tmp_path / "releases.jsonl"))) == 1
+
+
+def test_release_types_do_not_collide_in_done(monkeypatch, tmp_path):
+    """album/A/title and single/A/title have distinct export keys."""
+    album = ReleaseStub(
+        rym_id="a/title", title="Title", artist="A",
+        url="https://rateyourmusic.com/release/album/a/title/", release_type="album")
+    single = ReleaseStub(
+        rym_id="a/title", title="Title", artist="A",
+        url="https://rateyourmusic.com/release/single/a/title/", release_type="single")
+    monkeypatch.setattr(dataset_mod, "get_chart", lambda path: [album, single])
+    monkeypatch.setattr(dataset_mod, "set_delay", lambda sec: None)
+    export_chart(out_dir=str(tmp_path))
+    assert len(read_dataset(str(tmp_path / "releases.jsonl"))) == 2

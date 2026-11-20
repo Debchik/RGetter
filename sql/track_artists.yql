@@ -1,0 +1,48 @@
+-- Spotify/VK intersected tracks -> credited Spotify artists
+-- Replace YTsaurus paths before running.
+-- VERIFIED IN THE UPLOADED TRACK SAMPLE: artist_rowids is a list of
+-- Spotify artist row IDs; artists.rowid exists in the artists export.
+-- This query expects artist_rowids to have a native List<Int64> type.
+-- If its physical type is YSON, see docs/singles-matching.md.
+--
+-- Run against the FULL catalogs, not independently sampled LIMIT 100 tables.
+-- Every result row corresponds to one credited artist for one Spotify track.
+-- No Spotify single/album membership is asserted.
+
+$tracks = (
+    SELECT
+        sp_rowid,
+        sp_id,
+        sp_title,
+        artist_rowids,
+        duration_ms,
+        isrc,
+        original_release_date
+    FROM `//PATH/TO/INTERSECTED_TRACKS`
+);
+
+$track_artist_pairs = (
+    SELECT
+        sp_rowid,
+        sp_id,
+        sp_title,
+        artist_rowid,
+        duration_ms,
+        isrc,
+        original_release_date
+    FROM $tracks
+    FLATTEN LIST BY artist_rowids AS artist_rowid
+);
+
+SELECT
+    t.sp_rowid AS spotify_track_rowid,
+    t.sp_id AS spotify_track_id,
+    t.sp_title AS spotify_track_name,
+    a.rowid AS spotify_artist_rowid,
+    a.id AS spotify_artist_id,
+    a.name AS artist_name,
+    t.duration_ms AS duration_ms,
+    t.isrc AS isrc,
+    t.original_release_date AS original_release_date
+FROM $track_artist_pairs AS t
+JOIN `//PATH/TO/ARTISTS` AS a ON t.artist_rowid = a.rowid;

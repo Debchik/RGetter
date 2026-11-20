@@ -46,10 +46,16 @@ class Release:
     descriptors: List[str] = field(default_factory=list)
     tracklist: List[Track] = field(default_factory=list)
     cover_url: str = ""
+    source: str = "live"       # origin of fetched HTML: live or wayback
 
     def __str__(self) -> str:
         y = f" ({self.year})" if self.year else ""
         return f"{self.artist} - {self.title}{y}"
+
+    @property
+    def release_key(self) -> str:
+        """Collision-safe release anchor: includes the release type."""
+        return f"{self.release_type}/{self.rym_id}"
 
     @property
     def genres(self) -> List[str]:
@@ -68,6 +74,7 @@ class Release:
     def as_dict(self) -> dict:
         return {
             "rym_id": self.rym_id,
+            "rym_release_key": self.release_key,
             "title": self.title,
             "artist": self.artist,
             "artist_id": self.artist_id,
@@ -84,6 +91,7 @@ class Release:
             "tracklist": [t.as_dict for t in self.tracklist],
             "track_count": self.track_count,
             "cover_url": self.cover_url,
+            "source": self.source,
         }
 
 
@@ -155,6 +163,11 @@ class ReleaseStub:
     position: Optional[int] = None  # chart rank, when from a chart page
 
     @property
+    def release_key(self) -> str:
+        """Collision-safe release anchor: includes the release type."""
+        return f"{self.release_type}/{self.rym_id}"
+
+    @property
     def genres(self) -> List[str]:
         """Primary then secondary genres, de-duplicated, order preserved."""
         out: List[str] = []
@@ -180,6 +193,7 @@ class ReleaseStub:
     def as_dict(self) -> dict:
         return {
             "rym_id": self.rym_id,
+            "rym_release_key": self.release_key,
             "title": self.title,
             "artist": self.artist,
             "artist_id": self.artist_id,
