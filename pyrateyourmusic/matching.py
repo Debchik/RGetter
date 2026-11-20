@@ -79,6 +79,7 @@ def connect(path: str | Path) -> sqlite3.Connection:
         spotify_artist_id TEXT NOT NULL, track_name TEXT NOT NULL,
         single_name TEXT NOT NULL, artist_name TEXT NOT NULL,
         release_date TEXT, duration_ms TEXT, isrc TEXT,
+        spotify_join_method TEXT NOT NULL DEFAULT 'unspecified',
         PRIMARY KEY (spotify_track_id, spotify_single_id, spotify_artist_id)
     );
     CREATE TABLE IF NOT EXISTS entities (
@@ -99,6 +100,14 @@ def connect(path: str | Path) -> sqlite3.Connection:
     CREATE INDEX IF NOT EXISTS candidates_by_url ON candidates(url);
     CREATE INDEX IF NOT EXISTS links_by_entity ON links(entity_key);
     """)
+    # Existing databases created by earlier versions remain readable.
+    columns = {row[1] for row in db.execute("PRAGMA table_info(spotify_tracks)")}
+    if "spotify_join_method" not in columns:
+        db.execute(
+            "ALTER TABLE spotify_tracks "
+            "ADD COLUMN spotify_join_method TEXT NOT NULL DEFAULT 'unspecified'"
+        )
+        db.commit()
     return db
 
 
@@ -147,12 +156,17 @@ def ingest_singles(input_csv: str | Path, sqlite_path: str | Path,
                     continue
                 eligible += 1
                 db.execute(
-                    "INSERT OR IGNORE INTO spotify_tracks VALUES (?,?,?,?,?,?,?,?,?)",
+                    """INSERT OR IGNORE INTO spotify_tracks
+                       (spotify_track_id,spotify_single_id,spotify_artist_id,
+                        track_name,single_name,artist_name,release_date,
+                        duration_ms,isrc,spotify_join_method)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
                     (row["spotify_track_id"], row["spotify_single_id"],
                      row["spotify_artist_id"], row["spotify_track_name"],
                      row["single_name"], row["artist_name"],
                      row.get("release_date") or "", row.get("duration_ms") or "",
-                     row.get("isrc") or ""),
+                     row.get("isrc") or "",
+                     (row.get("spotify_join_method") or "unspecified").strip()),
                 )
                 _insert_entity(db, row, "single", row["single_name"].strip())
                 _insert_entity(db, row, "song", row["spotify_track_name"].strip())
@@ -183,6 +197,42 @@ def export_candidates(sqlite_path: str | Path, output_csv: str | Path) -> int:
                     FROM candidates c JOIN entities e USING (entity_key)
                     ORDER BY c.url, c.rank"""):
                 writer.writerow(row)
+                count += 1
+    finally:
+        db.close()
+    return count
+
+
+def export_spotify_links(sqlite_path: str | Path, output_csv: str | Path) -> int:
+    """Export source Spotify IDs alongside candidate URLs and join provenance.
+
+    Each row is one source track/release/artist link to one URL hypothesis.
+    An unverified URL or a heuristic Spotify join is NOT ground truth.
+    """
+    db = connect(sqlite_path)
+    count = 0
+    try:
+        with open(output_csv, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow([
+                "spotify_track_id", "spotify_single_id", "spotify_artist_id",
+                "spotify_join_method", "entity_kind", "candidate_url",
+                "candidate_status", "candidate_rank",
+            ])
+            for record in db.execute("""
+                SELECT l.spotify_track_id,l.spotify_single_id,
+                       l.spotify_artist_id,s.spotify_join_method,e.kind,
+                       c.url,c.status,c.rank
+                FROM links l
+                JOIN spotify_tracks s
+                  ON s.spotify_track_id=l.spotify_track_id
+                 AND s.spotify_single_id=l.spotify_single_id
+                 AND s.spotify_artist_id=l.spotify_artist_id
+                JOIN entities e ON e.entity_key=l.entity_key
+                JOIN candidates c ON c.entity_key=l.entity_key
+                ORDER BY l.spotify_track_id,l.spotify_single_id,c.rank
+            """):
+                writer.writerow(record)
                 count += 1
     finally:
         db.close()
@@ -284,6 +334,11 @@ def main() -> None:
     export = sub.add_parser("export", help="Export unverified URL hypotheses")
     export.add_argument("sqlite")
     export.add_argument("csv")
+    links_export = sub.add_parser(
+        "export-links", help="Export Spotify IDs and join provenance for each URL hypothesis"
+    )
+    links_export.add_argument("sqlite")
+    links_export.add_argument("csv")
     verify = sub.add_parser("verify-html", help="Validate one downloaded HTML file")
     verify.add_argument("sqlite")
     verify.add_argument("url")
@@ -293,6 +348,8 @@ def main() -> None:
         print(ingest_singles(args.csv, args.sqlite, limit=args.limit))
     elif args.command == "export":
         print(f"Exported {export_candidates(args.sqlite, args.csv)} candidate relations")
+    elif args.command == "export-links":
+        print(f"Exported {export_spotify_links(args.sqlite, args.csv)} Spotify candidate links")
     else:
         print(verify_html(args.sqlite, args.url, Path(args.html).read_text(encoding="utf-8")))
 
