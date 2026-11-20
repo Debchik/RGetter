@@ -410,6 +410,10 @@ def _metadata_from_html(url: str, kind: str, artist: str, title: str,
             "n_ratings": release.get("n_ratings"),
             "release_date": release.get("date", ""),
             "rym_song_urls": song_links_in_single(html),
+            "rym_track_count": len(release.get("tracklist", [])),
+            "rym_track_titles": [
+                track_title for _, track_title, _ in release.get("tracklist", [])
+            ],
         })
     return out
 
