@@ -184,6 +184,97 @@ def ingest_singles(input_csv: str | Path, sqlite_path: str | Path,
         db.close()
 
 
+TRACK_REQUIRED = {
+    "spotify_track_id", "spotify_track_name", "spotify_artist_id", "artist_name",
+}
+
+
+def ingest_tracks(
+    input_csv: str | Path,
+    sqlite_path: str | Path,
+    batch_size: int = 2000,
+    limit: int | None = None,
+    kinds: tuple[str, ...] = ("song", "single"),
+) -> dict:
+    """Generate song + single URL *hypotheses* from track/artist rows.
+
+    No album tables or single membership are required. For single candidates,
+    the track title is a URL guess, NOT a confirmed Spotify single title.
+    Re-running the same input against the same DB is idempotent.
+    """
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive")
+    if not kinds or any(kind not in {"song", "single"} for kind in kinds):
+        raise ValueError("kinds must contain song, single, or both")
+    db = connect(sqlite_path)
+    rows = eligible = skipped = 0
+    try:
+        with open(input_csv, newline="", encoding="utf-8-sig") as fh:
+            reader = csv.DictReader(fh)
+            missing = TRACK_REQUIRED - set(reader.fieldnames or ())
+            if missing:
+                raise ValueError(f"Missing columns: {', '.join(sorted(missing))}")
+            for row in reader:
+                if limit is not None and rows >= limit:
+                    break
+                rows += 1
+                if any(not (row.get(k) or "").strip() for k in TRACK_REQUIRED):
+                    skipped += 1
+                    continue
+                eligible += 1
+                track_id = row["spotify_track_id"].strip()
+                artist_id = row["spotify_artist_id"].strip()
+                track_title = row["spotify_track_name"].strip()
+                artist_name = row["artist_name"].strip()
+                # Empty release ID indicates that no Spotify album association
+                # has been claimed or invented from the track's title.
+                db.execute(
+                    """INSERT OR IGNORE INTO spotify_tracks
+                       (spotify_track_id, spotify_single_id, spotify_artist_id,
+                        track_name, single_name, artist_name, release_date,
+                        duration_ms, isrc, spotify_join_method)
+                       VALUES (?, '', ?, ?, '', ?, ?, ?, ?, ?)""",
+                    (track_id, artist_id, track_title, artist_name,
+                     (row.get("original_release_date")
+                      or row.get("track_release_date")
+                      or row.get("release_date") or ""),
+                     row.get("duration_ms") or "",
+                     row.get("isrc") or "",
+                     "track_artist_id_join"),
+                )
+                link_row = {
+                    "spotify_track_id": track_id,
+                    "spotify_single_id": "",
+                    "spotify_artist_id": artist_id,
+                    "artist_name": artist_name,
+                }
+                for kind in kinds:
+                    _insert_entity(db, link_row, kind, track_title)
+                if rows % batch_size == 0:
+                    db.commit()
+        db.commit()
+        return {
+            "rows_read": rows,
+            "eligible_rows": eligible,
+            "skipped_rows": skipped,
+            "distinct_spotify_tracks": db.execute(
+                "SELECT COUNT(DISTINCT spotify_track_id) "
+                "FROM spotify_tracks WHERE spotify_single_id=''"
+            ).fetchone()[0],
+            "distinct_track_artist_pairs": db.execute(
+                "SELECT COUNT(*) FROM spotify_tracks WHERE spotify_single_id=''"
+            ).fetchone()[0],
+            "unique_entities": db.execute(
+                "SELECT COUNT(*) FROM entities"
+            ).fetchone()[0],
+            "candidate_relations": db.execute(
+                "SELECT COUNT(*) FROM candidates"
+            ).fetchone()[0],
+        }
+    finally:
+        db.close()
+
+
 def export_candidates(sqlite_path: str | Path, output_csv: str | Path) -> int:
     """Export URL hypotheses; multiple Spotify entities can map to one URL."""
     db = connect(sqlite_path)
@@ -331,6 +422,18 @@ def main() -> None:
     ingest.add_argument("csv")
     ingest.add_argument("sqlite")
     ingest.add_argument("--limit", type=int)
+    tracks = sub.add_parser(
+        "ingest-tracks",
+        help="Track + credited artist CSV -> song/single URL guesses (no albums)"
+    )
+    tracks.add_argument("csv")
+    tracks.add_argument("sqlite")
+    tracks.add_argument("--limit", type=int)
+    tracks.add_argument("--batch-size", type=int, default=2000)
+    tracks.add_argument(
+        "--kinds", choices=["song", "single", "both"], default="both",
+        help="Choose URL families to propose (default: both)"
+    )
     export = sub.add_parser("export", help="Export unverified URL hypotheses")
     export.add_argument("sqlite")
     export.add_argument("csv")
@@ -346,6 +449,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "ingest":
         print(ingest_singles(args.csv, args.sqlite, limit=args.limit))
+    elif args.command == "ingest-tracks":
+        kinds = ("song", "single") if args.kinds == "both" else (args.kinds,)
+        print(ingest_tracks(args.csv, args.sqlite, batch_size=args.batch_size,
+                            limit=args.limit, kinds=kinds))
     elif args.command == "export":
         print(f"Exported {export_candidates(args.sqlite, args.csv)} candidate relations")
     elif args.command == "export-links":
