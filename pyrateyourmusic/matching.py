@@ -8,10 +8,12 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import json
 import re
 import sqlite3
 import unicodedata
 from pathlib import Path
+from datetime import datetime, timezone
 from urllib.parse import quote, urlparse, urljoin
 
 from bs4 import BeautifulSoup
@@ -99,6 +101,10 @@ def connect(path: str | Path) -> sqlite3.Connection:
     );
     CREATE INDEX IF NOT EXISTS candidates_by_url ON candidates(url);
     CREATE INDEX IF NOT EXISTS links_by_entity ON links(entity_key);
+    CREATE TABLE IF NOT EXISTS rym_metadata (
+        url TEXT PRIMARY KEY, kind TEXT NOT NULL, metadata_json TEXT NOT NULL,
+        processed_at TEXT NOT NULL
+    );
     """)
     # Existing databases created by earlier versions remain readable.
     columns = {row[1] for row in db.execute("PRAGMA table_info(spotify_tracks)")}
@@ -377,6 +383,97 @@ def song_links_in_single(html: str) -> list[str]:
     return urls
 
 
+def _metadata_from_html(url: str, kind: str, artist: str, title: str,
+                        html: str) -> dict:
+    """Extract available page-level metadata; never assign it to a recording."""
+    out = {"kind": kind, "artist": artist, "title": title,
+           "url": url, "source": "supplied_html"}
+    if kind == "single":
+        from pyrateyourmusic._parse import parse_release_page
+        parts = _canonical(url).strip("/").split("/")
+        rym_id = "/".join(parts[-2:])
+        release = parse_release_page(html, rym_id, release_type="single")
+        out.update({
+            "primary_genres": release.get("primary_genres", []),
+            "secondary_genres": release.get("secondary_genres", []),
+            "descriptors": release.get("descriptors", []),
+            "rating": release.get("rating"),
+            "n_ratings": release.get("n_ratings"),
+            "release_date": release.get("date", ""),
+            "rym_song_urls": song_links_in_single(html),
+        })
+    return out
+
+
+def verify_manifest(sqlite_path: str | Path, manifest_csv: str | Path,
+                    limit: int | None = None) -> dict:
+    """Process a local CSV manifest: url,html_path (absolute or relative)."""
+    root = Path(manifest_csv).resolve().parent
+    rows = 0
+    verified_pages = 0
+    verified_entities = 0
+    failed_files = 0
+    with open(manifest_csv, newline="", encoding="utf-8-sig") as fh:
+        reader = csv.DictReader(fh)
+        if not {"url", "html_path"}.issubset(reader.fieldnames or ()):
+            raise ValueError("Manifest requires url,html_path columns")
+        for row in reader:
+            if limit is not None and rows >= limit:
+                break
+            rows += 1
+            path = Path(row["html_path"])
+            if not path.is_absolute():
+                path = root / path
+            try:
+                page = path.read_text(encoding="utf-8", errors="replace")
+                result = verify_html(sqlite_path, row["url"], page)
+            except (OSError, ValueError):
+                failed_files += 1
+                continue
+            if result["verified"]:
+                verified_pages += 1
+                verified_entities += result["verified"]
+    return {"rows": rows, "verified_pages": verified_pages,
+            "verified_entities": verified_entities, "file_errors": failed_files}
+
+
+def export_verified(sqlite_path: str | Path, output_csv: str | Path) -> int:
+    """Output only verified page↔Spotify track/artist matches + page metadata.
+
+    RYM single metadata remains RELEASE-level. Spotify single IDs can be
+    blank for title-derived candidates; blank is not evidence of membership.
+    """
+    db = connect(sqlite_path)
+    count = 0
+    try:
+        with open(output_csv, "w", newline="", encoding="utf-8") as fh:
+            writer = csv.writer(fh)
+            writer.writerow([
+                "spotify_track_id", "spotify_artist_id", "spotify_single_id",
+                "spotify_join_method", "rym_kind", "rym_url", "metadata_json"
+            ])
+            for record in db.execute("""
+                SELECT l.spotify_track_id, l.spotify_artist_id,
+                       l.spotify_single_id, s.spotify_join_method,
+                       e.kind, c.url, m.metadata_json
+                FROM links l
+                JOIN spotify_tracks s
+                  ON s.spotify_track_id=l.spotify_track_id
+                 AND s.spotify_artist_id=l.spotify_artist_id
+                 AND s.spotify_single_id=l.spotify_single_id
+                JOIN entities e ON e.entity_key=l.entity_key
+                JOIN candidates c ON c.entity_key=l.entity_key
+                JOIN rym_metadata m ON m.url=c.url
+                WHERE c.status='verified'
+                ORDER BY l.spotify_track_id, e.kind, c.url
+            """):
+                writer.writerow(record)
+                count += 1
+    finally:
+        db.close()
+    return count
+
+
 def verify_html(sqlite_path: str | Path, url: str, html: str) -> dict:
     """Verify a saved page against candidate names and its canonical URL.
 
@@ -407,6 +504,15 @@ def verify_html(sqlite_path: str | Path, url: str, html: str) -> dict:
                        (status, artist, title, key, url))
             updated += 1
             verified += int(good)
+        if verified:
+            # A successful page identity match proves the page is relevant,
+            # not that two recordings are audio-identical.
+            metadata = _metadata_from_html(url, kind, artist, title, html)
+            db.execute("""
+                INSERT OR REPLACE INTO rym_metadata
+                (url,kind,metadata_json,processed_at) VALUES (?,?,?,?)
+            """, (url, kind, json.dumps(metadata, ensure_ascii=False),
+                  datetime.now(timezone.utc).isoformat()))
         db.commit()
     finally:
         db.close()
@@ -442,10 +548,17 @@ def main() -> None:
     )
     links_export.add_argument("sqlite")
     links_export.add_argument("csv")
-    verify = sub.add_parser("verify-html", help="Validate one downloaded HTML file")
+    verify = sub.add_parser("verify-html", help="Validate one saved HTML file")
     verify.add_argument("sqlite")
     verify.add_argument("url")
     verify.add_argument("html")
+    batch = sub.add_parser("verify-batch", help="Verify saved HTML pages from url,html_path CSV")
+    batch.add_argument("sqlite")
+    batch.add_argument("manifest")
+    batch.add_argument("--limit", type=int)
+    verified = sub.add_parser("export-verified", help="Export only verified candidates with RYM metadata")
+    verified.add_argument("sqlite")
+    verified.add_argument("csv")
     args = parser.parse_args()
     if args.command == "ingest":
         print(ingest_singles(args.csv, args.sqlite, limit=args.limit))
@@ -457,6 +570,10 @@ def main() -> None:
         print(f"Exported {export_candidates(args.sqlite, args.csv)} candidate relations")
     elif args.command == "export-links":
         print(f"Exported {export_spotify_links(args.sqlite, args.csv)} Spotify candidate links")
+    elif args.command == "verify-batch":
+        print(verify_manifest(args.sqlite, args.manifest, limit=args.limit))
+    elif args.command == "export-verified":
+        print(f"Exported {export_verified(args.sqlite, args.csv)} verified RYM links")
     else:
         print(verify_html(args.sqlite, args.url, Path(args.html).read_text(encoding="utf-8")))
 
